@@ -1,30 +1,35 @@
+
 package com.bloodfuryreminder;
 
 import com.google.inject.Provides;
 import java.awt.Toolkit;
 import javax.inject.Inject;
+
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.GameState;
+import net.runelite.api.InventoryID;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.Skill;
 import net.runelite.api.events.GameTick;
+
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.api.EquipmentInventorySlot;
-import net.runelite.api.InventoryID;
-import net.runelite.api.Item;
-import net.runelite.api.ItemContainer;
 
 @PluginDescriptor(
-    name = "Blood Fury Reminder",
-    description = "Alerts when HP is high enough to conserve Blood Fury charges",
-    tags = {"blood fury", "health", "hitpoints", "combat"}
+        name = "Blood Fury Reminder",
+        description = "Alerts when HP is high enough to conserve Blood Fury charges",
+        tags = {"blood fury", "health", "hitpoints", "combat"}
 )
 public class BloodFuryReminderPlugin extends Plugin
 {
+    private static final int BLOOD_FURY_ID = 24780;
+
     @Inject
     private Client client;
 
@@ -39,12 +44,13 @@ public class BloodFuryReminderPlugin extends Plugin
 
     private boolean alreadyAlerted;
     private boolean initialHpChecked;
-    private static final int BLOOD_FURY_ID = 24780;
 
     @Override
     protected void startUp()
     {
         overlayManager.add(flashOverlay);
+        alreadyAlerted = false;
+        initialHpChecked = false;
     }
 
     @Override
@@ -52,21 +58,22 @@ public class BloodFuryReminderPlugin extends Plugin
     {
         overlayManager.remove(flashOverlay);
         alreadyAlerted = false;
+        initialHpChecked = false;
     }
+
     @Subscribe
     public void onGameTick(GameTick event)
     {
         if (client.getGameState() != GameState.LOGGED_IN)
         {
-            alreadyAlerted = false;
-            initialHpChecked = false;
+            resetReminder();
             return;
         }
 
+        // Never monitor HP unless the Blood Fury is equipped.
         if (!isBloodFuryEquipped())
         {
-            alreadyAlerted = false;
-            initialHpChecked = false;
+            resetReminder();
             return;
         }
 
@@ -80,7 +87,7 @@ public class BloodFuryReminderPlugin extends Plugin
 
         int hpPercentage = (currentHp * 100) / maximumHp;
 
-        // Check initial HP without triggering an alert
+        // First check after equipping: don't alert immediately.
         if (!initialHpChecked)
         {
             alreadyAlerted = hpPercentage >= config.hpThreshold();
@@ -102,25 +109,10 @@ public class BloodFuryReminderPlugin extends Plugin
         }
     }
 
-    private void alertPlayer(int hp)
+    private void resetReminder()
     {
-        client.addChatMessage(
-            ChatMessageType.GAMEMESSAGE,
-            "",
-            "[Blood Fury Reminder] HP is " + hp
-                + "%! Consider switching off your Blood Fury.",
-            null
-
-        );
-
-        if (config.flashScreen())
-        {
-            flashOverlay.triggerFlash();
-        }
-        if (config.playSound())
-        {
-            Toolkit.getDefaultToolkit().beep();
-        }
+        alreadyAlerted = false;
+        initialHpChecked = false;
     }
 
     private boolean isBloodFuryEquipped()
@@ -138,6 +130,30 @@ public class BloodFuryReminderPlugin extends Plugin
         );
 
         return amulet != null && amulet.getId() == BLOOD_FURY_ID;
+    }
+
+    private void alertPlayer(int hp)
+    {
+        if (config.showChatMessage())
+        {
+            client.addChatMessage(
+                    ChatMessageType.GAMEMESSAGE,
+                    "",
+                    "[Blood Fury Reminder] HP is " + hp
+                            + "%! Consider switching off your Blood Fury.",
+                    null
+            );
+        }
+
+        if (config.flashScreen())
+        {
+            flashOverlay.triggerFlash();
+        }
+
+        if (config.playSound())
+        {
+            Toolkit.getDefaultToolkit().beep();
+        }
     }
 
     @Provides

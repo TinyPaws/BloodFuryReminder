@@ -38,4 +38,14 @@ public interface BloodFuryReminderConfig extends Config
     {
         return false;
     }
+
+    @ConfigItem(
+            keyName = "showChatMessage",
+            name = "Show chat message",
+            description = "Show a chat message when the HP threshold is reached"
+    )
+    default boolean showChatMessage()
+    {
+        return true;
+    }
 }
