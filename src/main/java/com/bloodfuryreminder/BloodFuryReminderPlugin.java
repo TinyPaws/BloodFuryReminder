@@ -13,6 +13,10 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.api.EquipmentInventorySlot;
+import net.runelite.api.InventoryID;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
 
 @PluginDescriptor(
     name = "Blood Fury Reminder",
@@ -35,6 +39,7 @@ public class BloodFuryReminderPlugin extends Plugin
 
     private boolean alreadyAlerted;
     private boolean initialHpChecked;
+    private static final int BLOOD_FURY_ID = 24780;
 
     @Override
     protected void startUp()
@@ -52,6 +57,13 @@ public class BloodFuryReminderPlugin extends Plugin
     public void onGameTick(GameTick event)
     {
         if (client.getGameState() != GameState.LOGGED_IN)
+        {
+            alreadyAlerted = false;
+            initialHpChecked = false;
+            return;
+        }
+
+        if (!isBloodFuryEquipped())
         {
             alreadyAlerted = false;
             initialHpChecked = false;
@@ -109,6 +121,23 @@ public class BloodFuryReminderPlugin extends Plugin
         {
             Toolkit.getDefaultToolkit().beep();
         }
+    }
+
+    private boolean isBloodFuryEquipped()
+    {
+        ItemContainer equipment =
+                client.getItemContainer(InventoryID.EQUIPMENT);
+
+        if (equipment == null)
+        {
+            return false;
+        }
+
+        Item amulet = equipment.getItem(
+                EquipmentInventorySlot.AMULET.getSlotIdx()
+        );
+
+        return amulet != null && amulet.getId() == BLOOD_FURY_ID;
     }
 
     @Provides
